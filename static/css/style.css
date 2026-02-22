@@ -1,74 +1,44 @@
-/* ============================================
-   YouTube Downloader - CSS Styles
-   Modern, responsive design with dark/light themes
-   ============================================ */
-
-/* CSS Variables - Theme Colors */
+/* ========== CSS Variables ========== */
 :root {
-    /* Dark Theme (Default) */
     --bg-primary: #0f0f0f;
     --bg-secondary: #1a1a1a;
-    --bg-tertiary: #252525;
     --bg-card: #1e1e1e;
     --bg-hover: #2a2a2a;
-    
     --text-primary: #ffffff;
     --text-secondary: #aaaaaa;
     --text-muted: #666666;
-    
     --accent-primary: #ff0000;
-    --accent-secondary: #cc0000;
     --accent-gradient: linear-gradient(135deg, #ff0000, #ff4444);
-    
     --border-color: #333333;
     --shadow-color: rgba(0, 0, 0, 0.3);
-    
     --success-color: #00c853;
     --error-color: #ff5252;
-    --warning-color: #ffc107;
     --info-color: #2196f3;
-    
-    /* Spacing */
-    --spacing-xs: 0.25rem;
     --spacing-sm: 0.5rem;
     --spacing-md: 1rem;
     --spacing-lg: 1.5rem;
     --spacing-xl: 2rem;
-    --spacing-xxl: 3rem;
-    
-    /* Border Radius */
     --radius-sm: 0.375rem;
     --radius-md: 0.75rem;
     --radius-lg: 1rem;
-    --radius-xl: 1.5rem;
     --radius-full: 9999px;
-    
-    /* Transitions */
-    --transition-fast: 0.15s ease;
-    --transition-normal: 0.3s ease;
-    --transition-slow: 0.5s ease;
-    
-    /* Font */
-    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --transition: 0.3s ease;
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* Light Theme */
 [data-theme="light"] {
     --bg-primary: #ffffff;
     --bg-secondary: #f5f5f5;
-    --bg-tertiary: #eeeeee;
     --bg-card: #ffffff;
     --bg-hover: #f0f0f0;
-    
     --text-primary: #1a1a1a;
     --text-secondary: #666666;
     --text-muted: #999999;
-    
     --border-color: #e0e0e0;
     --shadow-color: rgba(0, 0, 0, 0.1);
 }
 
-/* Reset & Base Styles */
+/* ========== Reset ========== */
 *, *::before, *::after {
     margin: 0;
     padding: 0;
@@ -85,10 +55,10 @@ body {
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
-    transition: background-color var(--transition-normal), color var(--transition-normal);
+    transition: background-color var(--transition), color var(--transition);
 }
 
-/* Container */
+/* ========== Container ========== */
 .container {
     max-width: 800px;
     margin: 0 auto;
@@ -98,7 +68,7 @@ body {
     flex-direction: column;
 }
 
-/* Theme Toggle Button */
+/* ========== Theme Toggle ========== */
 .theme-toggle {
     position: fixed;
     top: var(--spacing-lg);
@@ -114,9 +84,8 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 1.25rem;
-    transition: all var(--transition-fast);
+    transition: all var(--transition);
     z-index: 1000;
-    box-shadow: 0 4px 12px var(--shadow-color);
 }
 
 .theme-toggle:hover {
@@ -124,10 +93,10 @@ body {
     transform: scale(1.05);
 }
 
-/* Header */
+/* ========== Header ========== */
 .header {
     text-align: center;
-    padding: var(--spacing-xxl) 0;
+    padding: var(--spacing-xl) 0;
 }
 
 .logo {
@@ -137,7 +106,6 @@ body {
     gap: var(--spacing-md);
     font-size: 2rem;
     font-weight: 700;
-    color: var(--text-primary);
     margin-bottom: var(--spacing-sm);
 }
 
@@ -151,7 +119,7 @@ body {
     font-size: 1.1rem;
 }
 
-/* Input Section */
+/* ========== Input Section ========== */
 .input-section {
     margin-bottom: var(--spacing-xl);
 }
@@ -173,7 +141,6 @@ body {
     position: absolute;
     left: var(--spacing-lg);
     color: var(--text-muted);
-    font-size: 1rem;
 }
 
 .url-input {
@@ -186,7 +153,7 @@ body {
     border-radius: var(--radius-lg);
     color: var(--text-primary);
     font-size: 1rem;
-    transition: all var(--transition-fast);
+    transition: all var(--transition);
 }
 
 .url-input:focus {
@@ -201,14 +168,12 @@ body {
 
 .paste-btn, .clear-btn {
     position: absolute;
-    right: var(--spacing-md);
     background: transparent;
     border: none;
     color: var(--text-muted);
     cursor: pointer;
     padding: var(--spacing-sm);
-    font-size: 1rem;
-    transition: color var(--transition-fast);
+    transition: color var(--transition);
 }
 
 .paste-btn {
@@ -240,7 +205,7 @@ body {
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: all var(--transition);
     white-space: nowrap;
 }
 
@@ -249,24 +214,20 @@ body {
     box-shadow: 0 8px 24px rgba(255, 0, 0, 0.3);
 }
 
-.fetch-btn:active {
-    transform: translateY(0);
-}
-
 .fetch-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
 }
 
-/* Drop Zone */
+/* ========== Drop Zone ========== */
 .drop-zone {
     border: 2px dashed var(--border-color);
     border-radius: var(--radius-lg);
     padding: var(--spacing-xl);
     text-align: center;
     color: var(--text-muted);
-    transition: all var(--transition-fast);
+    transition: all var(--transition);
     cursor: pointer;
 }
 
@@ -281,7 +242,7 @@ body {
     display: block;
 }
 
-/* Error Message */
+/* ========== Error Message ========== */
 .error-message {
     display: none;
     align-items: center;
@@ -298,12 +259,12 @@ body {
     display: flex;
 }
 
-/* Loading Spinner */
+/* ========== Loading ========== */
 .loading {
     display: none;
     flex-direction: column;
     align-items: center;
-    padding: var(--spacing-xxl);
+    padding: var(--spacing-xl);
 }
 
 .loading.visible {
@@ -328,7 +289,7 @@ body {
     color: var(--text-secondary);
 }
 
-/* Video Info Section */
+/* ========== Video Info ========== */
 .video-info {
     display: none;
     margin-bottom: var(--spacing-xl);
@@ -395,10 +356,10 @@ body {
 .video-meta span {
     display: flex;
     align-items: center;
-    gap: var(--spacing-xs);
+    gap: 0.25rem;
 }
 
-/* Format Section */
+/* ========== Format Section ========== */
 .format-section {
     display: none;
     margin-bottom: var(--spacing-xl);
@@ -428,7 +389,7 @@ body {
     font-size: 1rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: all var(--transition);
 }
 
 .tab-btn:hover {
@@ -457,8 +418,9 @@ body {
 
 .format-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
 }
 
 .format-card {
@@ -468,7 +430,7 @@ body {
     padding: var(--spacing-lg);
     text-align: center;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: all var(--transition);
 }
 
 .format-card:hover {
@@ -482,21 +444,44 @@ body {
 }
 
 .format-card .format-quality {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     font-weight: 700;
-    margin-bottom: var(--spacing-xs);
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.format-card:hover .format-quality,
+.format-card.selected .format-quality {
+    color: var(--accent-primary);
 }
 
 .format-card .format-ext {
     color: var(--text-muted);
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+}
+
+.format-card .format-ext i {
+    font-size: 0.7rem;
+    opacity: 0.7;
 }
 
 .format-card .format-size {
-    color: var(--text-secondary);
+    color: var(--success-color);
     font-size: 0.75rem;
-    margin-top: var(--spacing-xs);
+    font-weight: 500;
+    margin-top: 0.25rem;
+}
+
+.no-formats {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--text-muted);
+    padding: var(--spacing-lg);
 }
 
 .download-format-btn {
@@ -514,7 +499,7 @@ body {
     align-items: center;
     justify-content: center;
     gap: var(--spacing-sm);
-    transition: all var(--transition-fast);
+    transition: all var(--transition);
 }
 
 .download-format-btn:hover {
@@ -528,7 +513,7 @@ body {
     transform: none;
 }
 
-/* Progress Section */
+/* ========== Progress Section ========== */
 .progress-section {
     display: none;
     margin-bottom: var(--spacing-xl);
@@ -562,7 +547,7 @@ body {
 
 .progress-bar {
     height: 8px;
-    background: var(--bg-tertiary);
+    background: var(--bg-secondary);
     border-radius: var(--radius-full);
     overflow: hidden;
     margin-bottom: var(--spacing-md);
@@ -583,7 +568,7 @@ body {
     font-size: 0.875rem;
 }
 
-/* Complete Section */
+/* ========== Complete Section ========== */
 .complete-section {
     display: none;
     margin-bottom: var(--spacing-xl);
@@ -596,7 +581,7 @@ body {
 .complete-container {
     background: var(--bg-card);
     border-radius: var(--radius-lg);
-    padding: var(--spacing-xxl);
+    padding: var(--spacing-xl);
     text-align: center;
     box-shadow: 0 4px 16px var(--shadow-color);
 }
@@ -628,7 +613,7 @@ body {
     color: white;
     text-decoration: none;
     font-weight: 600;
-    transition: all var(--transition-fast);
+    transition: all var(--transition);
     margin-bottom: var(--spacing-lg);
 }
 
@@ -648,7 +633,7 @@ body {
     color: var(--text-primary);
     font-weight: 500;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: all var(--transition);
 }
 
 .new-download-btn:hover {
@@ -656,7 +641,7 @@ body {
     border-color: var(--text-primary);
 }
 
-/* Footer */
+/* ========== Footer ========== */
 .footer {
     margin-top: auto;
     padding-top: var(--spacing-xl);
@@ -666,11 +651,11 @@ body {
 }
 
 .disclaimer {
-    margin-top: var(--spacing-xs);
+    margin-top: 0.25rem;
     font-size: 0.75rem;
 }
 
-/* Toast Notifications */
+/* ========== Toast ========== */
 .toast-container {
     position: fixed;
     bottom: var(--spacing-lg);
@@ -704,42 +689,18 @@ body {
     }
 }
 
-.toast.success {
-    border-left: 4px solid var(--success-color);
-}
+.toast.success { border-left: 4px solid var(--success-color); }
+.toast.error { border-left: 4px solid var(--error-color); }
+.toast.info { border-left: 4px solid var(--info-color); }
 
-.toast.error {
-    border-left: 4px solid var(--error-color);
-}
+.toast.success i { color: var(--success-color); }
+.toast.error i { color: var(--error-color); }
+.toast.info i { color: var(--info-color); }
 
-.toast.info {
-    border-left: 4px solid var(--info-color);
-}
-
-.toast i {
-    font-size: 1.25rem;
-}
-
-.toast.success i {
-    color: var(--success-color);
-}
-
-.toast.error i {
-    color: var(--error-color);
-}
-
-.toast.info i {
-    color: var(--info-color);
-}
-
-/* Responsive Design */
+/* ========== Responsive ========== */
 @media (max-width: 768px) {
     .container {
         padding: var(--spacing-md);
-    }
-    
-    .header {
-        padding: var(--spacing-xl) 0;
     }
     
     .logo {
@@ -773,10 +734,6 @@ body {
 }
 
 @media (max-width: 480px) {
-    .format-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-    
     .format-tabs {
         flex-direction: column;
     }
@@ -787,7 +744,7 @@ body {
     }
 }
 
-/* Scrollbar Styling */
+/* ========== Scrollbar ========== */
 ::-webkit-scrollbar {
     width: 8px;
 }
@@ -805,78 +762,7 @@ body {
     background: var(--text-muted);
 }
 
-/* Selection */
 ::selection {
     background: var(--accent-primary);
     color: white;
-}
-
-/* Focus Visible */
-:focus-visible {
-    outline: 2px solid var(--accent-primary);
-    outline-offset: 2px;
-}
-
-/* Animations */
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
-
-.pulse {
-    animation: pulse 2s ease-in-out infinite;
-}
-/* Format card improvements */
-.format-card {
-    position: relative;
-}
-
-.format-card .format-size {
-    color: var(--success-color);
-    font-weight: 500;
-}
-
-.format-card .format-ext {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-}
-
-.format-card .format-ext i {
-    font-size: 0.75rem;
-    opacity: 0.7;
-}
-
-.format-card.selected .format-size {
-    color: var(--accent-primary);
-}
-
-.no-formats {
-    grid-column: 1 / -1;
-    text-align: center;
-    color: var(--text-muted);
-    padding: var(--spacing-lg);
-}
-
-/* Improve format grid display */
-.format-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
-}
-
-.format-card .format-quality {
-    font-size: 1.4rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.format-card:hover .format-quality {
-    color: var(--accent-primary);
-}
-
-.format-card.selected .format-quality {
-    color: var(--accent-primary);
 }
