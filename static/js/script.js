@@ -1,6 +1,6 @@
 /**
  * YouTube Downloader - Frontend JavaScript
- * FIXED: Proper format selection with actual formats from video
+ * Handles UI interactions and API calls
  */
 
 // DOM Elements
@@ -26,8 +26,8 @@ const elements = {
 let state = {
     currentUrl: '',
     videoData: null,
-    selectedVideoFormat: null,  // Stores {format_id, height, resolution, filesize_str}
-    selectedAudioFormat: null,  // Stores {format_id, abr, abr_str, filesize_str}
+    selectedVideoFormat: null,
+    selectedAudioFormat: null,
     formatType: 'video',
     isDownloading: false,
     downloadId: null,
@@ -35,39 +35,47 @@ let state = {
 
 const API_BASE = '';
 
-// ============== Theme ==============
+// ==================== THEME ====================
+
 function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    updateThemeIcon(savedTheme);
+    const saved = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', saved);
+    updateThemeIcon(saved);
 }
 
 function toggleTheme() {
     const current = document.documentElement.getAttribute('data-theme');
-    const newTheme = current === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    updateThemeIcon(newTheme);
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    updateThemeIcon(next);
 }
 
 function updateThemeIcon(theme) {
     elements.themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
 }
 
-// ============== Toast ==============
+// ==================== TOAST ====================
+
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+    const icons = {
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        info: 'fa-info-circle'
+    };
     toast.innerHTML = `<i class="fas ${icons[type]}"></i><span>${message}</span>`;
     elements.toastContainer.appendChild(toast);
+    
     setTimeout(() => {
         toast.style.animation = 'slideIn 0.3s ease reverse';
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
 
-// ============== Validation ==============
+// ==================== VALIDATION ====================
+
 function isValidYouTubeUrl(url) {
     const patterns = [
         /^(https?:\/\/)?(www\.)?youtube\.com\/watch\?v=[\w-]+/,
@@ -78,9 +86,10 @@ function isValidYouTubeUrl(url) {
     return patterns.some(p => p.test(url));
 }
 
-// ============== Error & Loading ==============
-function showError(message) {
-    elements.errorText.textContent = message;
+// ==================== UI HELPERS ====================
+
+function showError(msg) {
+    elements.errorText.textContent = msg;
     elements.errorMessage.classList.add('visible');
 }
 
@@ -98,7 +107,6 @@ function hideLoading() {
     elements.fetchBtn.disabled = false;
 }
 
-// ============== Sections ==============
 function hideAllSections() {
     elements.videoInfo.classList.remove('visible');
     elements.formatSection.classList.remove('visible');
@@ -113,7 +121,8 @@ function showVideoAndFormats() {
     elements.completeSection.classList.remove('visible');
 }
 
-// ============== Formatting ==============
+// ==================== FORMATTING ====================
+
 function formatNumber(num) {
     if (!num) return '0';
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -123,34 +132,32 @@ function formatNumber(num) {
 
 function formatSpeed(bps) {
     if (!bps) return '-- MB/s';
-    const mbps = bps / (1024 * 1024);
-    return mbps.toFixed(1) + ' MB/s';
+    return (bps / (1024 * 1024)).toFixed(1) + ' MB/s';
 }
 
-function formatEta(seconds) {
-    if (!seconds || seconds < 0) return '-- remaining';
-    if (seconds < 60) return `${Math.round(seconds)}s remaining`;
-    const min = Math.floor(seconds / 60);
-    const sec = Math.round(seconds % 60);
-    return `${min}m ${sec}s remaining`;
+function formatEta(sec) {
+    if (!sec || sec < 0) return '-- remaining';
+    if (sec < 60) return `${Math.round(sec)}s remaining`;
+    return `${Math.floor(sec / 60)}m ${Math.round(sec % 60)}s remaining`;
 }
 
-// ============== Fetch Video Info ==============
+// ==================== FETCH VIDEO INFO ====================
+
 async function fetchVideoInfo(url) {
     hideError();
     showLoading();
     hideAllSections();
     
     try {
-        const response = await fetch(`${API_BASE}/api/info`, {
+        const res = await fetch(`${API_BASE}/api/info`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url }),
         });
         
-        const data = await response.json();
+        const data = await res.json();
         
-        if (!response.ok || !data.success) {
+        if (!res.ok || !data.success) {
             throw new Error(data.error || 'Failed to fetch video info');
         }
         
@@ -161,16 +168,16 @@ async function fetchVideoInfo(url) {
         displayFormats(data.formats);
         showVideoAndFormats();
         showToast('Video info loaded!', 'success');
-        
-    } catch (error) {
-        showError(error.message);
-        showToast(error.message, 'error');
+    } catch (err) {
+        showError(err.message);
+        showToast(err.message, 'error');
     } finally {
         hideLoading();
     }
 }
 
-// ============== Display Video Info ==============
+// ==================== DISPLAY VIDEO INFO ====================
+
 function displayVideoInfo(info) {
     document.getElementById('thumbnail').src = info.thumbnail || '';
     document.getElementById('duration').textContent = info.duration_str || '';
@@ -179,7 +186,8 @@ function displayVideoInfo(info) {
     document.getElementById('viewCount').textContent = formatNumber(info.view_count) + ' views';
 }
 
-// ============== Display Formats ==============
+// ==================== DISPLAY FORMATS ====================
+
 function displayFormats(formats) {
     const videoGrid = document.getElementById('videoFormatGrid');
     const audioGrid = document.getElementById('audioFormatGrid');
@@ -187,54 +195,52 @@ function displayFormats(formats) {
     videoGrid.innerHTML = '';
     audioGrid.innerHTML = '';
     
-    // VIDEO FORMATS - Show actual available formats with real sizes
+    // Video formats
     if (formats.video && formats.video.length > 0) {
-        formats.video.forEach((fmt, index) => {
+        formats.video.forEach((fmt, i) => {
             const card = document.createElement('div');
             card.className = 'format-card';
             card.dataset.type = 'video';
             card.dataset.formatId = fmt.format_id;
             card.dataset.height = fmt.height;
             
-            const hasAudioIcon = fmt.has_audio ? '<i class="fas fa-volume-up" title="Has audio"></i>' : '<i class="fas fa-volume-mute" title="No audio (will merge)"></i>';
+            const audioIcon = fmt.has_audio 
+                ? '<i class="fas fa-volume-up" title="Has audio"></i>' 
+                : '<i class="fas fa-volume-mute" title="Video only"></i>';
             
             card.innerHTML = `
                 <div class="format-quality">${fmt.resolution}</div>
-                <div class="format-ext">${fmt.ext.toUpperCase()} ${hasAudioIcon}</div>
+                <div class="format-ext">${fmt.ext.toUpperCase()} ${audioIcon}</div>
                 <div class="format-size">${fmt.filesize_str || 'Size varies'}</div>
             `;
             
             card.addEventListener('click', () => selectVideoFormat(fmt, card));
             videoGrid.appendChild(card);
             
-            // Select first format by default
-            if (index === 0) {
-                selectVideoFormat(fmt, card);
-            }
+            if (i === 0) selectVideoFormat(fmt, card);
         });
     } else {
         videoGrid.innerHTML = '<p class="no-formats">No video formats available</p>';
     }
     
-    // Add video download button
-    const existingVideoBtn = document.getElementById('videoDownloadBtn');
-    if (existingVideoBtn) existingVideoBtn.remove();
+    // Video download button
+    const oldVideoBtn = document.getElementById('videoDownloadBtn');
+    if (oldVideoBtn) oldVideoBtn.remove();
     
-    const videoDownloadBtn = document.createElement('button');
-    videoDownloadBtn.className = 'download-format-btn';
-    videoDownloadBtn.id = 'videoDownloadBtn';
-    videoDownloadBtn.innerHTML = '<i class="fas fa-download"></i> Download Video';
-    videoDownloadBtn.addEventListener('click', () => startDownload('video'));
-    videoGrid.parentElement.appendChild(videoDownloadBtn);
+    const videoBtn = document.createElement('button');
+    videoBtn.className = 'download-format-btn';
+    videoBtn.id = 'videoDownloadBtn';
+    videoBtn.innerHTML = '<i class="fas fa-download"></i> Download Video';
+    videoBtn.addEventListener('click', () => startDownload('video'));
+    videoGrid.parentElement.appendChild(videoBtn);
     
-    // AUDIO FORMATS - Show actual available formats with real sizes
+    // Audio formats
     if (formats.audio && formats.audio.length > 0) {
-        formats.audio.forEach((fmt, index) => {
+        formats.audio.forEach((fmt, i) => {
             const card = document.createElement('div');
             card.className = 'format-card';
             card.dataset.type = 'audio';
             card.dataset.formatId = fmt.format_id;
-            card.dataset.abr = fmt.abr;
             
             card.innerHTML = `
                 <div class="format-quality">${fmt.abr_str}</div>
@@ -245,52 +251,42 @@ function displayFormats(formats) {
             card.addEventListener('click', () => selectAudioFormat(fmt, card));
             audioGrid.appendChild(card);
             
-            // Select first format by default
-            if (index === 0) {
-                selectAudioFormat(fmt, card);
-            }
+            if (i === 0) selectAudioFormat(fmt, card);
         });
     } else {
         audioGrid.innerHTML = '<p class="no-formats">No audio formats available</p>';
     }
     
-    // Add audio download button
-    const existingAudioBtn = document.getElementById('audioDownloadBtn');
-    if (existingAudioBtn) existingAudioBtn.remove();
+    // Audio download button
+    const oldAudioBtn = document.getElementById('audioDownloadBtn');
+    if (oldAudioBtn) oldAudioBtn.remove();
     
-    const audioDownloadBtn = document.createElement('button');
-    audioDownloadBtn.className = 'download-format-btn';
-    audioDownloadBtn.id = 'audioDownloadBtn';
-    audioDownloadBtn.innerHTML = '<i class="fas fa-download"></i> Download Audio';
-    audioDownloadBtn.addEventListener('click', () => startDownload('audio'));
-    audioGrid.parentElement.appendChild(audioDownloadBtn);
+    const audioBtn = document.createElement('button');
+    audioBtn.className = 'download-format-btn';
+    audioBtn.id = 'audioDownloadBtn';
+    audioBtn.innerHTML = '<i class="fas fa-download"></i> Download Audio';
+    audioBtn.addEventListener('click', () => startDownload('audio'));
+    audioGrid.parentElement.appendChild(audioBtn);
 }
 
-function selectVideoFormat(fmt, cardElement) {
-    // Remove selected from all video cards
+function selectVideoFormat(fmt, card) {
     document.querySelectorAll('.format-card[data-type="video"]').forEach(c => {
         c.classList.remove('selected');
     });
-    
-    cardElement.classList.add('selected');
+    card.classList.add('selected');
     state.selectedVideoFormat = fmt;
-    
-    console.log('Selected video format:', fmt);
 }
 
-function selectAudioFormat(fmt, cardElement) {
-    // Remove selected from all audio cards
+function selectAudioFormat(fmt, card) {
     document.querySelectorAll('.format-card[data-type="audio"]').forEach(c => {
         c.classList.remove('selected');
     });
-    
-    cardElement.classList.add('selected');
+    card.classList.add('selected');
     state.selectedAudioFormat = fmt;
-    
-    console.log('Selected audio format:', fmt);
 }
 
-// ============== Tab Switching ==============
+// ==================== TAB SWITCHING ====================
+
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const tab = btn.dataset.tab;
@@ -305,34 +301,31 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     });
 });
 
-// ============== Start Download ==============
+// ==================== DOWNLOAD ====================
+
 async function startDownload(type) {
     if (state.isDownloading) {
-        showToast('Download already in progress', 'info');
+        showToast('Download in progress', 'info');
         return;
     }
     
-    let selectedFormat;
-    let quality;
+    let fmt, quality;
     
     if (type === 'video') {
-        selectedFormat = state.selectedVideoFormat;
-        if (!selectedFormat) {
-            showToast('Please select a video quality', 'error');
+        fmt = state.selectedVideoFormat;
+        if (!fmt) {
+            showToast('Select a video quality', 'error');
             return;
         }
-        quality = String(selectedFormat.height);  // Send height as quality
+        quality = String(fmt.height);
     } else {
-        selectedFormat = state.selectedAudioFormat;
-        if (!selectedFormat) {
-            showToast('Please select an audio quality', 'error');
+        fmt = state.selectedAudioFormat;
+        if (!fmt) {
+            showToast('Select an audio quality', 'error');
             return;
         }
-        quality = selectedFormat.format_id;  // Send format_id for audio
+        quality = fmt.format_id;
     }
-    
-    console.log(`Starting ${type} download:`, selectedFormat);
-    console.log(`Quality parameter: ${quality}`);
     
     state.isDownloading = true;
     state.formatType = type;
@@ -340,10 +333,10 @@ async function startDownload(type) {
     elements.formatSection.classList.remove('visible');
     elements.progressSection.classList.add('visible');
     
-    updateProgress(0, 'Starting download...', `Expected size: ${selectedFormat.filesize_str || 'Unknown'}`);
+    updateProgress(0, 'Starting download...', `Expected: ${fmt.filesize_str || 'Unknown size'}`);
     
     try {
-        const response = await fetch(`${API_BASE}/api/download`, {
+        const res = await fetch(`${API_BASE}/api/download`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -353,50 +346,50 @@ async function startDownload(type) {
             }),
         });
         
-        const data = await response.json();
+        const data = await res.json();
         
-        if (!response.ok || !data.success) {
+        if (!res.ok || !data.success) {
             throw new Error(data.error || 'Download failed');
         }
         
         state.downloadId = data.download_id;
         pollProgress(data.download_id, data.download_url, data.filename, data.filesize);
-        
-    } catch (error) {
+    } catch (err) {
         state.isDownloading = false;
-        showError(error.message);
-        showToast(error.message, 'error');
+        showError(err.message);
+        showToast(err.message, 'error');
         showVideoAndFormats();
     }
 }
 
-// ============== Poll Progress ==============
+// ==================== PROGRESS POLLING ====================
+
 function pollProgress(downloadId, downloadUrl, filename, filesize) {
     const poll = setInterval(async () => {
         try {
-            const response = await fetch(`${API_BASE}/api/progress/${downloadId}`);
-            const progress = await response.json();
+            const res = await fetch(`${API_BASE}/api/progress/${downloadId}`);
+            const data = await res.json();
             
-            if (progress.status === 'downloading') {
+            if (data.status === 'downloading') {
                 updateProgress(
-                    progress.progress || 0,
+                    data.progress || 0,
                     'Downloading...',
-                    `Speed: ${formatSpeed(progress.speed)} | ${formatEta(progress.eta)}`
+                    `${formatSpeed(data.speed)} | ${formatEta(data.eta)}`
                 );
-            } else if (progress.status === 'processing') {
-                updateProgress(100, 'Processing file...', 'Almost done!');
-            } else if (progress.status === 'completed') {
+            } else if (data.status === 'processing') {
+                updateProgress(100, 'Processing...', 'Almost done!');
+            } else if (data.status === 'completed') {
                 clearInterval(poll);
                 state.isDownloading = false;
-                showDownloadComplete(
-                    progress.download_url || downloadUrl,
-                    progress.filename || filename,
-                    progress.filesize || filesize
+                showComplete(
+                    data.download_url || downloadUrl,
+                    data.filename || filename,
+                    data.filesize || filesize
                 );
-            } else if (progress.status === 'error') {
+            } else if (data.status === 'error') {
                 clearInterval(poll);
                 state.isDownloading = false;
-                showError(progress.message || 'Download failed');
+                showError(data.message || 'Download failed');
                 showToast('Download failed', 'error');
                 showVideoAndFormats();
             }
@@ -416,39 +409,34 @@ function pollProgress(downloadId, downloadUrl, filename, filesize) {
     }, 600000);
 }
 
-// ============== Update Progress ==============
+// ==================== UPDATE UI ====================
+
 function updateProgress(percent, status, info = '') {
     document.getElementById('progressFill').style.width = `${percent}%`;
     document.getElementById('progressPercentage').textContent = `${Math.round(percent)}%`;
     document.getElementById('progressTitle').textContent = status;
-    
-    const speedEl = document.getElementById('progressSpeed');
-    const etaEl = document.getElementById('progressEta');
-    
-    if (info) {
-        speedEl.textContent = info;
-        etaEl.textContent = '';
-    }
+    document.getElementById('progressSpeed').textContent = info;
+    document.getElementById('progressEta').textContent = '';
 }
 
-// ============== Download Complete ==============
-function showDownloadComplete(downloadUrl, filename, filesize) {
+function showComplete(url, filename, filesize) {
     elements.progressSection.classList.remove('visible');
     elements.completeSection.classList.add('visible');
     
-    const displayName = filename || 'Download ready';
-    const displaySize = filesize ? ` (${filesize})` : '';
+    const name = filename || 'Download ready';
+    const size = filesize ? ` (${filesize})` : '';
     
-    document.getElementById('completedFilename').textContent = displayName + displaySize;
+    document.getElementById('completedFilename').textContent = name + size;
     
-    const downloadLink = document.getElementById('downloadLink');
-    downloadLink.href = downloadUrl;
-    downloadLink.download = filename || '';
+    const link = document.getElementById('downloadLink');
+    link.href = url;
+    link.download = filename || '';
     
     showToast('Download complete!', 'success');
 }
 
-// ============== Event Listeners ==============
+// ==================== EVENT LISTENERS ====================
+
 elements.themeToggle.addEventListener('click', toggleTheme);
 
 elements.urlInput.addEventListener('input', () => {
@@ -467,8 +455,8 @@ elements.pasteBtn.addEventListener('click', async () => {
         elements.urlInput.value = text;
         elements.clearBtn.classList.add('visible');
         showToast('URL pasted', 'info');
-    } catch (error) {
-        showToast('Could not access clipboard', 'error');
+    } catch (e) {
+        showToast('Could not paste', 'error');
     }
 });
 
@@ -477,10 +465,15 @@ elements.clearBtn.addEventListener('click', () => {
     elements.clearBtn.classList.remove('visible');
     hideError();
     hideAllSections();
-    state.currentUrl = '';
-    state.videoData = null;
-    state.selectedVideoFormat = null;
-    state.selectedAudioFormat = null;
+    state = {
+        currentUrl: '',
+        videoData: null,
+        selectedVideoFormat: null,
+        selectedAudioFormat: null,
+        formatType: 'video',
+        isDownloading: false,
+        downloadId: null,
+    };
 });
 
 elements.fetchBtn.addEventListener('click', handleFetch);
@@ -514,6 +507,7 @@ elements.dropZone.addEventListener('dragleave', () => {
 elements.dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
     elements.dropZone.classList.remove('drag-over');
+    
     const text = e.dataTransfer.getData('text');
     if (text && isValidYouTubeUrl(text)) {
         elements.urlInput.value = text;
@@ -526,7 +520,6 @@ elements.dropZone.addEventListener('drop', (e) => {
 
 elements.dropZone.addEventListener('click', () => elements.urlInput.focus());
 
-// New download button
 document.getElementById('newDownloadBtn').addEventListener('click', () => {
     elements.urlInput.value = '';
     elements.clearBtn.classList.remove('visible');
@@ -543,5 +536,6 @@ document.getElementById('newDownloadBtn').addEventListener('click', () => {
     elements.urlInput.focus();
 });
 
-// Initialize
+// ==================== INITIALIZE ====================
+
 initTheme();
