@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: youtube-downloader
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt
+      python -c "from ffmpeg_handler import setup_ffmpeg; import os; setup_ffmpeg(os.path.join(os.path.dirname(os.path.abspath('.')), 'static', 'ffmpeg'))"
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 300
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.11.4
+    healthCheckPath: /api/health
+    autoDeploy: true

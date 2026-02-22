@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Downloader - Free Video & Audio Download</title>
+    <meta name="description" content="Download YouTube videos and audio in various formats and qualities. Free, fast, and easy to use.">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📥</text></svg>">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Theme Toggle -->
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <i class="fas fa-moon" id="themeIcon"></i>
+    </button>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fab fa-youtube"></i>
+                <span>YouTube Downloader</span>
+            </div>
+            <p class="tagline">Download videos and audio in high quality</p>
+        </header>
+
+        <!-- URL Input Section -->
+        <section class="input-section">
+            <div class="input-wrapper">
+                <div class="input-container">
+                    <i class="fas fa-link input-icon"></i>
+                    <input 
+                        type="text" 
+                        id="urlInput" 
+                        class="url-input" 
+                        placeholder="Paste YouTube URL here..."
+                        autocomplete="off"
+                        spellcheck="false"
+                    >
+                    <button class="paste-btn" id="pasteBtn" title="Paste from clipboard">
+                        <i class="fas fa-paste"></i>
+                    </button>
+                    <button class="clear-btn" id="clearBtn" title="Clear">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <button class="fetch-btn" id="fetchBtn">
+                    <i class="fas fa-search"></i>
+                    <span>Get Video Info</span>
+                </button>
+            </div>
+            
+            <!-- Drag & Drop Area -->
+            <div class="drop-zone" id="dropZone">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Or drag & drop a YouTube link here</p>
+            </div>
+
+            <!-- Error Message -->
+            <div class="error-message" id="errorMessage">
+                <i class="fas fa-exclamation-circle"></i>
+                <span id="errorText"></span>
+            </div>
+        </section>
+
+        <!-- Loading Spinner -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Fetching video information...</p>
+        </div>
+
+        <!-- Video Info Section -->
+        <section class="video-info" id="videoInfo">
+            <div class="video-card">
+                <div class="thumbnail-container">
+                    <img id="thumbnail" src="" alt="Video thumbnail" class="thumbnail">
+                    <span class="duration" id="duration"></span>
+                </div>
+                <div class="video-details">
+                    <h2 class="video-title" id="videoTitle"></h2>
+                    <div class="video-meta">
+                        <span class="channel" id="channel">
+                            <i class="fas fa-user"></i>
+                            <span id="channelName"></span>
+                        </span>
+                        <span class="views" id="views">
+                            <i class="fas fa-eye"></i>
+                            <span id="viewCount"></span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Format Selection -->
+        <section class="format-section" id="formatSection">
+            <div class="format-tabs">
+                <button class="tab-btn active" data-tab="video">
+                    <i class="fas fa-video"></i>
+                    Video
+                </button>
+                <button class="tab-btn" data-tab="audio">
+                    <i class="fas fa-music"></i>
+                    Audio
+                </button>
+            </div>
+
+            <!-- Video Formats -->
+            <div class="format-content active" id="videoFormats">
+                <h3>Select Video Quality</h3>
+                <div class="format-grid" id="videoFormatGrid">
+                    <!-- Video format cards will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Audio Formats -->
+            <div class="format-content" id="audioFormats">
+                <h3>Select Audio Quality</h3>
+                <div class="format-grid" id="audioFormatGrid">
+                    <!-- Audio format cards will be inserted here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Download Progress -->
+        <section class="progress-section" id="progressSection">
+            <div class="progress-container">
+                <div class="progress-header">
+                    <span class="progress-title" id="progressTitle">Downloading...</span>
+                    <span class="progress-percentage" id="progressPercentage">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-info">
+                    <span id="progressSpeed">-- MB/s</span>
+                    <span id="progressEta">-- remaining</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Download Complete -->
+        <section class="complete-section" id="completeSection">
+            <div class="complete-container">
+                <i class="fas fa-check-circle success-icon"></i>
+                <h3>Download Ready!</h3>
+                <p id="completedFilename"></p>
+                <a href="#" class="download-link" id="downloadLink">
+                    <i class="fas fa-download"></i>
+                    Download Now
+                </a>
+                <button class="new-download-btn" id="newDownloadBtn">
+                    <i class="fas fa-redo"></i>
+                    Download Another
+                </button>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>For personal use only. Respect copyright laws.</p>
+            <p class="disclaimer">This service is not affiliated with YouTube.</p>
+        </footer>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
