@@ -1,17 +1,12 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Virtual environments
+*.so
+.Python
 venv/
 env/
 ENV/
-
-# Distribution / packaging
-build/
-dist/
-*.egg-info/
 
 # IDE
 .vscode/
@@ -19,32 +14,27 @@ dist/
 *.swp
 *.swo
 
-# Environment variables
+# Environment
 .env
 .env.local
 
-# Downloads folder (keep structure, ignore content)
+# Downloads (keep folder, ignore content)
 downloads/*
 !downloads/.gitkeep
 
-# FFmpeg binaries (will be downloaded during build)
+# FFmpeg binaries
 static/ffmpeg/ffmpeg
 static/ffmpeg/ffprobe
 static/ffmpeg/*.exe
+!static/ffmpeg/.gitkeep
 
 # Logs
 *.log
-logs/
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
 # Testing
 .pytest_cache/
 .coverage
-htmlcov/
-
-# Temporary files
-*.tmp
-*.temp
