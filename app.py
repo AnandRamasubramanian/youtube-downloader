@@ -1,10 +1,9 @@
 """
 YouTube Video/Audio Downloader - Flask Application
-FIXED: Proper format selection with correct file sizes
+Production-ready for Render deployment
 """
 import os
 import re
-import json
 import uuid
 import random
 import threading
@@ -12,11 +11,10 @@ import time
 import traceback
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
 
 from flask import (
-    Flask, render_template, request, jsonify, 
-    Response, send_file, abort
+    Flask, render_template, request, jsonify,
+    send_file, abort
 )
 from flask_cors import CORS
 from flask_limiter import Limiter
@@ -26,14 +24,15 @@ import yt_dlp
 from config import config
 from ffmpeg_handler import setup_ffmpeg, FFmpegHandler
 
-# Initialize Flask app
+# ==================== APP SETUP ====================
+
 app = Flask(__name__)
 
-# Load configuration
+# Load config
 env = os.environ.get('FLASK_ENV', 'development')
 app.config.from_object(config.get(env, config['default']))
 
-# Initialize extensions
+# Extensions
 CORS(app)
 limiter = Limiter(
     key_func=get_remote_address,
@@ -42,47 +41,56 @@ limiter = Limiter(
     storage_uri=app.config.get('RATELIMIT_STORAGE_URL', 'memory://')
 )
 
-# Global variables
+# Global state
 download_progress = {}
 ffmpeg_location = None
-video_formats_cache = {}  # Cache format info per video
 
-# Ensure directories exist
+# Create directories
 os.makedirs(app.config['DOWNLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['FFMPEG_FOLDER'], exist_ok=True)
 
 
+# ==================== INITIALIZATION ====================
+
 def init_ffmpeg():
-    """Initialize FFmpeg on startup"""
+    """Initialize FFmpeg"""
     global ffmpeg_location
     print("=" * 50)
     print("Initializing FFmpeg...")
-    print("=" * 50)
     
     try:
         ffmpeg_location = setup_ffmpeg(app.config['FFMPEG_FOLDER'])
+        
         if ffmpeg_location:
-            print(f"✓ FFmpeg ready at: {ffmpeg_location}")
+            print(f"✓ FFmpeg at: {ffmpeg_location}")
         else:
             handler = FFmpegHandler(app.config['FFMPEG_FOLDER'])
             if handler.check_system_ffmpeg():
                 print("✓ Using system FFmpeg")
             else:
-                print("⚠ FFmpeg not available - audio conversion limited")
+                print("⚠ FFmpeg not available - audio features limited")
     except Exception as e:
-        print(f"✗ FFmpeg init error: {e}")
+        print(f"✗ FFmpeg error: {e}")
+    
+    print("=" * 50)
 
 
+# Initialize on startup
 init_ffmpeg()
 
 
+# ==================== HELPERS ====================
+
 def get_random_user_agent():
-    return random.choice(app.config.get('USER_AGENTS', [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    ]))
+    """Get random user agent"""
+    agents = app.config.get('USER_AGENTS', [])
+    if agents:
+        return random.choice(agents)
+    return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 
 
 def validate_youtube_url(url):
+    """Validate YouTube URL"""
     if not url:
         return False, "URL is required"
     
@@ -101,7 +109,8 @@ def validate_youtube_url(url):
 
 
 def format_filesize(bytes_size):
-    if bytes_size is None or bytes_size == 0:
+    """Format bytes to readable size"""
+    if not bytes_size:
         return None
     for unit in ['B', 'KB', 'MB', 'GB']:
         if bytes_size < 1024:
@@ -111,6 +120,7 @@ def format_filesize(bytes_size):
 
 
 def format_duration(seconds):
+    """Format seconds to readable duration"""
     if not seconds:
         return 'Unknown'
     hours, remainder = divmod(int(seconds), 3600)
@@ -121,7 +131,7 @@ def format_duration(seconds):
 
 
 def get_yt_dlp_opts():
-    """Get yt-dlp options with bypass settings"""
+    """Get yt-dlp options with anti-block settings"""
     opts = {
         'quiet': True,
         'no_warnings': True,
@@ -150,25 +160,28 @@ def get_yt_dlp_opts():
 
 
 def cleanup_old_files():
-    download_folder = Path(app.config['DOWNLOAD_FOLDER'])
-    current_time = time.time()
+    """Remove old download files"""
+    folder = Path(app.config['DOWNLOAD_FOLDER'])
+    now = time.time()
     
-    for file_path in download_folder.glob('*'):
-        if file_path.is_file() and file_path.name != '.gitkeep':
+    for f in folder.glob('*'):
+        if f.is_file() and f.name != '.gitkeep':
             try:
-                if current_time - file_path.stat().st_mtime > 300:
-                    file_path.unlink()
-            except:
+                if now - f.stat().st_mtime > 300:
+                    f.unlink()
+            except Exception:
                 pass
 
 
 class ProgressHook:
+    """Track download progress"""
+    
     def __init__(self, download_id):
         self.download_id = download_id
         self.last_update = 0
     
     def __call__(self, d):
-        if time.time() - self.last_update < 0.3:
+        if time.time() - self.last_update < 0.5:
             return
         self.last_update = time.time()
         
@@ -183,6 +196,7 @@ class ProgressHook:
                 'speed': d.get('speed', 0),
                 'eta': d.get('eta', 0),
             }
+        
         elif d['status'] == 'finished':
             download_progress[self.download_id] = {
                 'status': 'processing',
@@ -190,148 +204,117 @@ class ProgressHook:
             }
 
 
-# ============== ROUTES ==============
+# ==================== ROUTES ====================
 
 @app.route('/')
 def index():
+    """Serve main page"""
     return render_template('index.html')
 
 
 @app.route('/api/health')
-def health_check():
+def health():
+    """Health check endpoint"""
     handler = FFmpegHandler(app.config['FFMPEG_FOLDER'])
+    has_ffmpeg = handler.is_installed() or handler.check_system_ffmpeg()
+    
     return jsonify({
         'status': 'healthy',
-        'ffmpeg_available': handler.is_installed() or handler.check_system_ffmpeg(),
-        'yt_dlp_version': yt_dlp.version.__version__,
+        'ffmpeg': has_ffmpeg,
+        'version': yt_dlp.version.__version__,
+        'time': datetime.utcnow().isoformat()
     })
 
 
 @app.route('/api/info', methods=['POST'])
 @limiter.limit("30 per minute")
 def get_video_info():
-    """Get video information with ACTUAL available formats"""
+    """Get video information and available formats"""
     data = request.get_json()
     url = data.get('url', '').strip()
     
-    is_valid, error = validate_youtube_url(url)
-    if not is_valid:
+    valid, error = validate_youtube_url(url)
+    if not valid:
         return jsonify({'success': False, 'error': error}), 400
     
     try:
-        ydl_opts = get_yt_dlp_opts()
+        opts = get_yt_dlp_opts()
         
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
         
         if not info:
-            return jsonify({'success': False, 'error': 'Could not extract video info'}), 400
+            return jsonify({'success': False, 'error': 'Could not get video info'}), 400
         
-        video_id = info.get('id', '')
+        # Process formats
         formats = info.get('formats', [])
-        
-        # Separate and organize formats
-        video_formats = []
-        audio_formats = []
-        
-        # Track best format per resolution
-        best_video_by_height = {}
-        best_audio_by_bitrate = {}
+        video_formats = {}
+        audio_formats = {}
         
         for f in formats:
-            format_id = f.get('format_id', '')
+            fmt_id = f.get('format_id', '')
             ext = f.get('ext', '')
             filesize = f.get('filesize') or f.get('filesize_approx', 0)
             vcodec = f.get('vcodec', 'none')
             acodec = f.get('acodec', 'none')
             
-            # VIDEO FORMATS
+            # Video formats
             if vcodec != 'none':
                 height = f.get('height', 0)
                 if height and height >= 144:
-                    # Key for grouping: height
-                    key = height
-                    
-                    # Check if this is better than existing
-                    existing = best_video_by_height.get(key)
-                    
-                    # Prefer formats with audio, then by filesize
                     has_audio = acodec != 'none'
-                    current_score = (has_audio, filesize or 0)
+                    current = video_formats.get(height)
                     
-                    if existing is None or current_score > (existing.get('has_audio', False), existing.get('filesize', 0)):
-                        best_video_by_height[key] = {
-                            'format_id': format_id,
+                    # Prefer formats with audio, then by bitrate
+                    score = (has_audio, f.get('tbr', 0) or 0, filesize)
+                    if not current or score > current['score']:
+                        video_formats[height] = {
+                            'format_id': fmt_id,
                             'height': height,
                             'resolution': f"{height}p",
                             'ext': ext,
                             'filesize': filesize,
                             'filesize_str': format_filesize(filesize),
                             'has_audio': has_audio,
-                            'vcodec': vcodec.split('.')[0] if vcodec else '',
-                            'acodec': acodec.split('.')[0] if acodec != 'none' else '',
-                            'fps': f.get('fps', 30),
-                            'tbr': f.get('tbr', 0),  # Total bitrate
+                            'score': score,
                         }
             
-            # AUDIO FORMATS (no video)
+            # Audio formats
             elif acodec != 'none' and vcodec == 'none':
                 abr = f.get('abr', 0)
                 if abr and abr >= 48:
-                    # Round to nearest standard bitrate
-                    standard_bitrates = [64, 96, 128, 160, 192, 256, 320]
-                    rounded_abr = min(standard_bitrates, key=lambda x: abs(x - abr))
-                    
-                    key = (ext, rounded_abr)
-                    existing = best_audio_by_bitrate.get(key)
-                    
-                    if existing is None or (filesize or 0) > existing.get('filesize', 0):
-                        best_audio_by_bitrate[key] = {
-                            'format_id': format_id,
+                    key = f"{ext}_{int(abr)}"
+                    if key not in audio_formats:
+                        audio_formats[key] = {
+                            'format_id': fmt_id,
                             'ext': ext,
                             'abr': abr,
-                            'abr_rounded': rounded_abr,
-                            'abr_str': f"{rounded_abr} kbps",
+                            'abr_str': f"{int(abr)} kbps",
                             'filesize': filesize,
                             'filesize_str': format_filesize(filesize),
-                            'acodec': acodec.split('.')[0] if acodec else '',
                         }
         
         # Convert to sorted lists
-        video_formats = sorted(
-            best_video_by_height.values(),
+        video_list = sorted(
+            [v for v in video_formats.values()],
             key=lambda x: x['height'],
             reverse=True
         )
         
-        audio_formats = sorted(
-            best_audio_by_bitrate.values(),
+        audio_list = sorted(
+            audio_formats.values(),
             key=lambda x: x['abr'],
             reverse=True
         )
         
-        # Store format mappings in cache for download
-        format_map = {
-            'video': {str(f['height']): f['format_id'] for f in video_formats},
-            'audio': {f['format_id']: f for f in audio_formats}
-        }
-        video_formats_cache[video_id] = {
-            'format_map': format_map,
-            'all_formats': {f['format_id']: f for f in formats},
-            'video_list': video_formats,
-            'audio_list': audio_formats,
-        }
-        
-        print(f"\n{'='*50}")
-        print(f"Video: {info.get('title')}")
-        print(f"Available video formats: {[f['resolution'] for f in video_formats]}")
-        print(f"Available audio formats: {[f['abr_str'] for f in audio_formats]}")
-        print(f"{'='*50}\n")
+        # Remove score from output
+        for v in video_list:
+            del v['score']
         
         return jsonify({
             'success': True,
             'info': {
-                'id': video_id,
+                'id': info.get('id'),
                 'title': info.get('title'),
                 'thumbnail': info.get('thumbnail'),
                 'duration': info.get('duration'),
@@ -340,42 +323,41 @@ def get_video_info():
                 'view_count': info.get('view_count'),
             },
             'formats': {
-                'video': video_formats,
-                'audio': audio_formats,
+                'video': video_list[:8],
+                'audio': audio_list[:5],
             }
         })
     
     except yt_dlp.utils.DownloadError as e:
-        error_msg = str(e)
-        if 'Private video' in error_msg:
+        msg = str(e)
+        if 'Private video' in msg:
             return jsonify({'success': False, 'error': 'This video is private'}), 400
-        elif 'age-restricted' in error_msg.lower():
+        if 'age-restricted' in msg.lower():
             return jsonify({'success': False, 'error': 'Age-restricted video'}), 400
         return jsonify({'success': False, 'error': 'Could not fetch video info'}), 400
     
     except Exception as e:
+        print(f"Info error: {e}")
         traceback.print_exc()
         return jsonify({'success': False, 'error': 'An error occurred'}), 500
 
 
 @app.route('/api/download', methods=['POST'])
 @limiter.limit("10 per minute")
-def download_video():
-    """Download video or audio with EXACT format selection"""
+def download():
+    """Download video or audio"""
     data = request.get_json()
     url = data.get('url', '').strip()
     format_type = data.get('format_type', 'video')
-    quality = data.get('quality', '')  # This will be format_id or height
+    quality = data.get('quality', '')
     
     print(f"\n{'='*50}")
-    print(f"DOWNLOAD REQUEST")
-    print(f"Type: {format_type}")
-    print(f"Quality: {quality}")
+    print(f"Download: {format_type} / {quality}")
     print(f"URL: {url}")
     print(f"{'='*50}")
     
-    is_valid, error = validate_youtube_url(url)
-    if not is_valid:
+    valid, error = validate_youtube_url(url)
+    if not valid:
         return jsonify({'success': False, 'error': error}), 400
     
     download_id = str(uuid.uuid4())[:8]
@@ -385,131 +367,87 @@ def download_video():
         f'{download_id}_%(title)s.%(ext)s'
     )
     
-    ydl_opts = get_yt_dlp_opts()
-    ydl_opts.update({
+    opts = get_yt_dlp_opts()
+    opts.update({
         'outtmpl': output_template,
         'progress_hooks': [ProgressHook(download_id)],
         'quiet': False,
     })
     
     try:
-        # First, get fresh format info
+        # Get video info first
         with yt_dlp.YoutubeDL(get_yt_dlp_opts()) as ydl:
             info = ydl.extract_info(url, download=False)
         
-        video_id = info.get('id', '')
         title = info.get('title', 'video')
         formats = info.get('formats', [])
-        
-        # Build format lookup
         format_lookup = {f['format_id']: f for f in formats}
         
-        # DETERMINE THE EXACT FORMAT TO DOWNLOAD
+        # Select format
         if format_type == 'audio':
-            # Quality is format_id for audio
-            selected_format_id = quality
+            # Audio: quality is format_id
+            if quality in format_lookup:
+                opts['format'] = quality
+            else:
+                opts['format'] = 'bestaudio/best'
             
-            # Verify it exists
-            if selected_format_id not in format_lookup:
-                # Try to find best matching audio
-                audio_formats = [f for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
-                if audio_formats:
-                    selected_format_id = audio_formats[0]['format_id']
-                else:
-                    selected_format_id = 'bestaudio'
+            # Check if conversion needed
+            fmt = format_lookup.get(quality, {})
+            has_ffmpeg = ffmpeg_location or FFmpegHandler(app.config['FFMPEG_FOLDER']).check_system_ffmpeg()
             
-            format_string = selected_format_id
-            
-            # Check if we need to convert
-            selected_fmt = format_lookup.get(selected_format_id, {})
-            selected_ext = selected_fmt.get('ext', 'm4a')
-            
-            print(f"Audio format selected: {selected_format_id}")
-            print(f"Audio ext: {selected_ext}")
-            print(f"Audio bitrate: {selected_fmt.get('abr', 'unknown')} kbps")
-            
-            ydl_opts['format'] = format_string
-            
-            # Convert to mp3 if requested and we have FFmpeg
-            convert_ext = data.get('convert_to', None)
-            if convert_ext == 'mp3':
-                has_ffmpeg = ffmpeg_location or FFmpegHandler(app.config['FFMPEG_FOLDER']).check_system_ffmpeg()
-                if has_ffmpeg:
-                    # Get target bitrate from the selected format
-                    target_bitrate = str(int(selected_fmt.get('abr', 192)))
-                    ydl_opts['postprocessors'] = [{
-                        'key': 'FFmpegExtractAudio',
-                        'preferredcodec': 'mp3',
-                        'preferredquality': target_bitrate,
-                    }]
-                    print(f"Will convert to MP3 at {target_bitrate}kbps")
+            if has_ffmpeg and fmt.get('ext') not in ['mp3']:
+                abr = fmt.get('abr', 192)
+                opts['postprocessors'] = [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': str(int(abr)),
+                }]
         
-        else:  # Video
-            # Quality is height (e.g., "720", "1080", "2160")
+        else:
+            # Video: quality is height
             target_height = int(quality) if quality.isdigit() else 720
             
-            print(f"Looking for video with height: {target_height}p")
-            
-            # Find EXACT format with this height
-            # Priority: has audio > higher bitrate > mp4
-            matching_formats = []
+            # Find best matching format
+            best_format = None
+            best_audio = None
             
             for f in formats:
-                height = f.get('height', 0)
-                if height == target_height and f.get('vcodec') != 'none':
+                h = f.get('height', 0)
+                if h == target_height and f.get('vcodec') != 'none':
                     has_audio = f.get('acodec') != 'none'
                     tbr = f.get('tbr', 0) or 0
-                    is_mp4 = f.get('ext') == 'mp4'
-                    filesize = f.get('filesize') or f.get('filesize_approx', 0) or 0
                     
-                    matching_formats.append({
-                        'format_id': f['format_id'],
-                        'has_audio': has_audio,
-                        'tbr': tbr,
-                        'is_mp4': is_mp4,
-                        'filesize': filesize,
-                        'ext': f.get('ext'),
-                        'acodec': f.get('acodec'),
-                    })
-            
-            if matching_formats:
-                # Sort: has_audio DESC, tbr DESC, is_mp4 DESC
-                matching_formats.sort(
-                    key=lambda x: (x['has_audio'], x['tbr'], x['is_mp4'], x['filesize']),
-                    reverse=True
-                )
-                
-                best_match = matching_formats[0]
-                selected_format_id = best_match['format_id']
-                
-                print(f"Found exact match: {selected_format_id}")
-                print(f"  Has audio: {best_match['has_audio']}")
-                print(f"  Bitrate: {best_match['tbr']} kbps")
-                print(f"  Filesize: {format_filesize(best_match['filesize'])}")
-                
-                # If video has no audio, we need to merge with audio
-                if best_match['has_audio']:
-                    format_string = selected_format_id
-                else:
-                    # Find best audio to merge
-                    audio_formats = [f for f in formats if f.get('acodec') != 'none' and f.get('vcodec') == 'none']
-                    if audio_formats:
-                        # Sort by bitrate
-                        audio_formats.sort(key=lambda x: x.get('abr', 0), reverse=True)
-                        best_audio = audio_formats[0]['format_id']
-                        format_string = f"{selected_format_id}+{best_audio}"
-                        print(f"Will merge with audio: {best_audio}")
+                    if not best_format:
+                        best_format = f
                     else:
-                        format_string = selected_format_id
-            else:
-                # No exact match, use yt-dlp format selection
-                format_string = f"best[height<={target_height}]/best"
-                print(f"No exact match, using: {format_string}")
+                        # Prefer with audio, then higher bitrate
+                        current_score = (has_audio, tbr)
+                        best_score = (best_format.get('acodec') != 'none', best_format.get('tbr', 0) or 0)
+                        if current_score > best_score:
+                            best_format = f
+                
+                # Find best audio for merging
+                if f.get('acodec') != 'none' and f.get('vcodec') == 'none':
+                    if not best_audio or (f.get('abr', 0) or 0) > (best_audio.get('abr', 0) or 0):
+                        best_audio = f
             
-            ydl_opts['format'] = format_string
-            ydl_opts['merge_output_format'] = 'mp4'
-        
-        print(f"\nFinal format string: {ydl_opts['format']}")
+            if best_format:
+                fmt_id = best_format['format_id']
+                
+                if best_format.get('acodec') != 'none':
+                    # Has audio already
+                    opts['format'] = fmt_id
+                elif best_audio:
+                    # Need to merge with audio
+                    opts['format'] = f"{fmt_id}+{best_audio['format_id']}"
+                else:
+                    opts['format'] = fmt_id
+                
+                print(f"Selected format: {opts['format']}")
+            else:
+                opts['format'] = f"best[height<={target_height}]/best"
+            
+            opts['merge_output_format'] = 'mp4'
         
         # Initialize progress
         download_progress[download_id] = {
@@ -518,55 +456,49 @@ def download_video():
             'title': title,
         }
         
-        # DOWNLOAD
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        # Download
+        with yt_dlp.YoutubeDL(opts) as ydl:
             ydl.download([url])
         
-        # Find downloaded file
-        download_folder = Path(app.config['DOWNLOAD_FOLDER'])
-        files = list(download_folder.glob(f'{download_id}_*'))
+        # Find file
+        folder = Path(app.config['DOWNLOAD_FOLDER'])
+        files = list(folder.glob(f'{download_id}_*'))
         
         if not files:
-            return jsonify({'success': False, 'error': 'Download failed - file not found'}), 500
+            return jsonify({'success': False, 'error': 'File not found after download'}), 500
         
         downloaded_file = files[0]
-        file_size = downloaded_file.stat().st_size
-        
-        print(f"\n✓ Download complete!")
-        print(f"  File: {downloaded_file.name}")
-        print(f"  Size: {format_filesize(file_size)}")
+        filesize = format_filesize(downloaded_file.stat().st_size)
         
         download_progress[download_id] = {
             'status': 'completed',
             'progress': 100,
             'filename': downloaded_file.name,
-            'filesize': format_filesize(file_size),
+            'filesize': filesize,
             'download_url': f'/api/file/{download_id}'
         }
+        
+        print(f"✓ Success: {downloaded_file.name} ({filesize})")
         
         return jsonify({
             'success': True,
             'download_id': download_id,
             'filename': downloaded_file.name,
-            'filesize': format_filesize(file_size),
+            'filesize': filesize,
             'download_url': f'/api/file/{download_id}'
         })
     
     except yt_dlp.utils.DownloadError as e:
-        error_msg = str(e)
-        print(f"✗ Download error: {error_msg}")
+        msg = str(e)
+        print(f"✗ Error: {msg}")
+        download_progress[download_id] = {'status': 'error', 'message': msg}
         
-        download_progress[download_id] = {'status': 'error', 'message': error_msg}
-        
-        if '403' in error_msg:
-            return jsonify({
-                'success': False,
-                'error': 'YouTube blocked this request. Try again or select a different quality.'
-            }), 400
-        
-        return jsonify({'success': False, 'error': 'Download failed. Try a different quality.'}), 400
+        if '403' in msg:
+            return jsonify({'success': False, 'error': 'YouTube blocked this request. Try again or different quality.'}), 400
+        return jsonify({'success': False, 'error': 'Download failed. Try different quality.'}), 400
     
     except Exception as e:
+        print(f"✗ Error: {e}")
         traceback.print_exc()
         download_progress[download_id] = {'status': 'error'}
         return jsonify({'success': False, 'error': 'Download failed'}), 500
@@ -574,14 +506,16 @@ def download_video():
 
 @app.route('/api/progress/<download_id>')
 def get_progress(download_id):
+    """Get download progress"""
     progress = download_progress.get(download_id, {'status': 'unknown'})
     return jsonify(progress)
 
 
 @app.route('/api/file/<download_id>')
 def serve_file(download_id):
-    download_folder = Path(app.config['DOWNLOAD_FOLDER'])
-    files = list(download_folder.glob(f'{download_id}_*'))
+    """Serve downloaded file"""
+    folder = Path(app.config['DOWNLOAD_FOLDER'])
+    files = list(folder.glob(f'{download_id}_*'))
     
     if not files:
         abort(404)
@@ -589,12 +523,13 @@ def serve_file(download_id):
     file_path = files[0]
     original_name = file_path.name[len(f'{download_id}_'):]
     
+    # Schedule cleanup
     def cleanup():
         time.sleep(120)
         try:
             if file_path.exists():
                 file_path.unlink()
-        except:
+        except Exception:
             pass
     
     threading.Thread(target=cleanup, daemon=True).start()
@@ -602,9 +537,11 @@ def serve_file(download_id):
     return send_file(file_path, as_attachment=True, download_name=original_name)
 
 
+# ==================== ERROR HANDLERS ====================
+
 @app.errorhandler(429)
-def ratelimit_handler(e):
-    return jsonify({'success': False, 'error': 'Rate limit exceeded'}), 429
+def rate_limit_error(e):
+    return jsonify({'success': False, 'error': 'Rate limit exceeded. Please wait.'}), 429
 
 
 @app.errorhandler(404)
@@ -614,22 +551,34 @@ def not_found(e):
     return render_template('index.html')
 
 
+@app.errorhandler(500)
+def server_error(e):
+    return jsonify({'success': False, 'error': 'Server error'}), 500
+
+
+# ==================== BACKGROUND TASKS ====================
+
 def periodic_cleanup():
+    """Clean up old files periodically"""
     while True:
         time.sleep(300)
         cleanup_old_files()
 
-threading.Thread(target=periodic_cleanup, daemon=True).start()
 
+cleanup_thread = threading.Thread(target=periodic_cleanup, daemon=True)
+cleanup_thread.start()
+
+
+# ==================== MAIN ====================
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_ENV') == 'development'
     
     print("\n" + "=" * 50)
-    print("YouTube Downloader")
+    print("YouTube Downloader Starting")
     print(f"yt-dlp: {yt_dlp.version.__version__}")
-    print(f"FFmpeg: {ffmpeg_location or 'System'}")
+    print(f"FFmpeg: {ffmpeg_location or 'System/None'}")
     print(f"Port: {port}")
     print("=" * 50 + "\n")
     
